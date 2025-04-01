@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* Custom focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid rgb(37, 99, 235);
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Form element enhancements */
+input, select, textarea {
+  @apply transition-colors duration-200;
+}
+
+/* Button transitions */
+button, a {
+  @apply transition-all duration-200;
+}
+
+/* Custom scrollbar for WebKit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(243, 244, 246);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgb(209, 213, 219);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(156, 163, 175);
+}
+
+/* Fix untuk header dan tombol navigasi kalender */
+.rdp {
+  --rdp-cell-size: 40px;
+  margin: 0 !important;
+}
+
+.rdp-months {
+  display: flex;
+  justify-content: center;
+}
+
+.rdp-month {
+  width: auto !important;
+}
+
+.rdp-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  position: relative;
+}
+
+.rdp-caption_label {
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.rdp-nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0.5rem;
+}
+
+.rdp-head_row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.rdp-head_cell {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #71717a;
+  padding: 0.5rem 0;
+  text-transform: uppercase;
+}
+
+.rdp-tbody {
+  width: 100%;
+}
+
+.rdp-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.rdp-cell {
+  flex: 1;
+  text-align: center;
+  padding: 0;
+  height: var(--rdp-cell-size);
+  width: var(--rdp-cell-size);
+  position: relative;
+}
+
+.rdp-day {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+}
+
+.rdp-day_selected {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.rdp-day_today {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+}
+
+/* Responsive sizing */
+@media (max-width: 640px) {
+  .rdp {
+    --rdp-cell-size: 36px;
+  }
+}
