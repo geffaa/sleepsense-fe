@@ -1,4 +1,3 @@
-// src/lib/api.ts
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Define types for API responses
@@ -185,16 +184,27 @@ interface PendingApprovalsResponse {
   }>;
 }
 
+// Updated interface for sensor data to match new database structure
 interface SensorDataResponse {
   sensorData: Array<{
-    id: number;
+    id?: number;
+    sleep_data_id: number;
     timestamp: string;
+    // Support both old and new field names
     ecg?: number;
+    ecg_mv?: number;
     oxygen?: number;
+    spo2?: number;
     thorax?: number;
+    piezoelectric_voltage?: number;
     breathing?: number;
+    radar_amplitude?: number;
     heart_rate?: number;
+    raw_ir?: number;
+    raw_red?: number;
     has_apnea_event: boolean;
+    apnea_severity?: string;
+    apnea_duration?: number;
   }>;
 }
 
@@ -400,7 +410,7 @@ export const doctorService = {
   },
 };
 
-// Device data services
+// Device data services - Updated for new field names
 export const deviceDataService = {
   getSensorData: async (
     sleepDataId: number, 
@@ -419,6 +429,169 @@ export const deviceDataService = {
       throw error;
     }
   },
+  
+  // Method to send ECG data
+  sendEcgData: async (
+    deviceSerialNumber: string,
+    timestamp: string,
+    ecgMv: number
+  ): Promise<MessageResponse> => {
+    try {
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/data`, {
+        timestamp,
+        data: { ecg: ecgMv } // Using the field name expected by the API
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Method to send Pulse Oximeter data
+  sendPulseOxData: async (
+    deviceSerialNumber: string,
+    timestamp: string,
+    spo2: number,
+    heartRate: number,
+    rawIr?: number,
+    rawRed?: number
+  ): Promise<MessageResponse> => {
+    try {
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/data`, {
+        timestamp,
+        data: { 
+          spo2,
+          bpm: heartRate, // Using the field name expected by the API
+          raw_ir: rawIr,
+          raw_red: rawRed,
+          batteryLevel: 100 // Just a placeholder, would come from real device
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Method to send Thoracic Movement data
+  sendThoracicData: async (
+    deviceSerialNumber: string,
+    timestamp: string,
+    piezoelectricVoltage: number
+  ): Promise<MessageResponse> => {
+    try {
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/data`, {
+        timestamp,
+        data: { 
+          piezoelectric_voltage: piezoelectricVoltage
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Method to send Breathing Pattern data
+  sendBreathingData: async (
+    deviceSerialNumber: string,
+    timestamp: string,
+    radarAmplitude: number
+  ): Promise<MessageResponse> => {
+    try {
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/data`, {
+        timestamp,
+        data: { 
+          radar_amplitude: radarAmplitude
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Method to send all sensor data at once
+  sendAllSensorData: async (
+    deviceSerialNumber: string,
+    timestamp: string,
+    data: {
+      ecg_mv?: number;
+      spo2?: number;
+      heart_rate?: number;
+      raw_ir?: number;
+      raw_red?: number;
+      piezoelectric_voltage?: number;
+      radar_amplitude?: number;
+      has_apnea_event?: boolean;
+    },
+    batteryLevel?: number
+  ): Promise<MessageResponse> => {
+    try {
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/data`, {
+        timestamp,
+        data: {
+          // Map to field names expected by the API
+          ecg: data.ecg_mv,
+          spo2: data.spo2,
+          bpm: data.heart_rate,
+          raw_ir: data.raw_ir,
+          raw_red: data.raw_red,
+          piezoelectric_voltage: data.piezoelectric_voltage,
+          radar_amplitude: data.radar_amplitude,
+          hasApneaEvent: data.has_apnea_event,
+          batteryLevel: batteryLevel || 100
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+  
+  // Method to send batch sensor data
+  sendBatchSensorData: async (
+    deviceSerialNumber: string,
+    batchData: Array<{
+      timestamp: string;
+      data: {
+        ecg_mv?: number;
+        spo2?: number;
+        heart_rate?: number;
+        raw_ir?: number;
+        raw_red?: number;
+        piezoelectric_voltage?: number;
+        radar_amplitude?: number;
+        has_apnea_event?: boolean;
+      };
+      batteryLevel?: number;
+    }>
+  ): Promise<MessageResponse> => {
+    try {
+      // Transform the data to match API expectations
+      const transformedBatchData = batchData.map(item => ({
+        timestamp: item.timestamp,
+        data: {
+          ecg: item.data.ecg_mv,
+          spo2: item.data.spo2,
+          bpm: item.data.heart_rate,
+          raw_ir: item.data.raw_ir,
+          raw_red: item.data.raw_red,
+          piezoelectric_voltage: item.data.piezoelectric_voltage,
+          radar_amplitude: item.data.radar_amplitude,
+          hasApneaEvent: item.data.has_apnea_event,
+        },
+        batteryLevel: item.batteryLevel || 100
+      }));
+      
+      const response = await api.post<MessageResponse>(`/data/device/${deviceSerialNumber}/batch-data`, {
+        batchData: transformedBatchData
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 };
 
 export default api;

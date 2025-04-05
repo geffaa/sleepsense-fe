@@ -18,16 +18,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { mockSleepData, getRealtimeSensorUpdate } from '@/lib/mock-data';
 
+// Define the structure with updated field names
 interface SleepData {
   ecg: {
     data: { time: string; value: number }[];
     unit: string;
   };
-  oxygen: {
+  spo2: {  // Updated from 'oxygen'
     data: { time: string; value: number }[];
     unit: string;
   };
-  thoracic: {
+  piezoelectric: {  // Updated from 'thoracic'
     data: { time: string; value: number }[];
     unit: string;
   };
@@ -46,31 +47,48 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
   timeRange, 
   onTimeRangeChange 
 }) => {
-  const [sleepData, setSleepData] = useState<SleepData>(() => mockSleepData(timeRange));
+  // Renamed 'oxygen' to 'spo2', 'thoracic' to 'piezoelectric'
+  // while maintaining compatibility for visualization
+  const [sleepData, setSleepData] = useState<SleepData>(() => {
+    const data = mockSleepData(timeRange);
+    return {
+      ecg: data.ecg,
+      spo2: {  // handle the rename
+        data: data.oxygen?.data || [],
+        unit: data.oxygen?.unit || '%'
+      },
+      piezoelectric: {  // handle the rename
+        data: data.thoracic?.data || [],
+        unit: data.thoracic?.unit || 'mV'
+      },
+      breathing: data.breathing
+    };
+  });
+  
   const [isLive, setIsLive] = useState(true);
   const [hasApneaEvent, setHasApneaEvent] = useState(false);
   const [apneaDuration, setApneaDuration] = useState(0);
   
-  // Effect untuk memperbarui data secara periodik untuk simulasi real-time
+  // Effect to update data periodically for real-time simulation
   useEffect(() => {
     if (!isLive) return;
     
     const updateInterval = setInterval(() => {
-      // Simulasi update data real-time dari perangkat IoT
+      // Simulate real-time sensor update from IoT device
       const latestData = getRealtimeSensorUpdate();
       
       setSleepData(prevData => {
-        // Update ecg data
+        // Update ECG data
         const newEcgData = [...prevData.ecg.data.slice(1)];
         newEcgData.push({ time: latestData.timestamp, value: latestData.ecg });
         
-        // Update oxygen data
-        const newOxygenData = [...prevData.oxygen.data.slice(1)];
-        newOxygenData.push({ time: latestData.timestamp, value: latestData.oxygen });
+        // Update oxygen data (now spo2)
+        const newSpo2Data = [...prevData.spo2.data.slice(1)];
+        newSpo2Data.push({ time: latestData.timestamp, value: latestData.oxygen });
         
-        // Update thoracic data
-        const newThoracicData = [...prevData.thoracic.data.slice(1)];
-        newThoracicData.push({ time: latestData.timestamp, value: latestData.thorax });
+        // Update thoracic data (now piezoelectric)
+        const newPiezoelectricData = [...prevData.piezoelectric.data.slice(1)];
+        newPiezoelectricData.push({ time: latestData.timestamp, value: latestData.thorax });
         
         // Update breathing data
         const newBreathingData = [...prevData.breathing.data.slice(1)];
@@ -81,13 +99,13 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
             data: newEcgData,
             unit: prevData.ecg.unit
           },
-          oxygen: {
-            data: newOxygenData,
-            unit: prevData.oxygen.unit
+          spo2: {
+            data: newSpo2Data,
+            unit: prevData.spo2.unit
           },
-          thoracic: {
-            data: newThoracicData,
-            unit: prevData.thoracic.unit
+          piezoelectric: {
+            data: newPiezoelectricData,
+            unit: prevData.piezoelectric.unit
           },
           breathing: {
             data: newBreathingData,
@@ -104,15 +122,27 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
         setApneaDuration(0);
       }
       
-    }, 1000); // Update setiap 1 detik
+    }, 1000); // Update every 1 second
     
     return () => clearInterval(updateInterval);
   }, [isLive]);
   
-  // Handle perubahan range waktu
+  // Handle time range change
   useEffect(() => {
-    // Ambil data baru ketika range waktu berubah
-    setSleepData(mockSleepData(timeRange));
+    // Get new data when time range changes
+    const data = mockSleepData(timeRange);
+    setSleepData({
+      ecg: data.ecg,
+      spo2: {
+        data: data.oxygen?.data || [],
+        unit: data.oxygen?.unit || '%'
+      },
+      piezoelectric: {
+        data: data.thoracic?.data || [],
+        unit: data.thoracic?.unit || 'mV'
+      },
+      breathing: data.breathing
+    });
   }, [timeRange]);
   
   const timeRangeOptions = [
@@ -126,7 +156,7 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
   const handleTimeRangeChange = (value: string) => {
     if (value) {
       onTimeRangeChange(value);
-      setIsLive(false); // Nonaktifkan live update ketika melihat data historis
+      setIsLive(false); // Disable live updates when viewing historical data
     }
   };
   
@@ -134,8 +164,20 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
   const toggleLiveMonitoring = () => {
     setIsLive(!isLive);
     if (!isLive) {
-      // Jika mengaktifkan live monitoring, perbarui data ke yang terbaru
-      setSleepData(mockSleepData('10m'));
+      // If enabling live monitoring, update to the latest data
+      const data = mockSleepData('10m');
+      setSleepData({
+        ecg: data.ecg,
+        spo2: {
+          data: data.oxygen?.data || [],
+          unit: data.oxygen?.unit || '%'
+        },
+        piezoelectric: {
+          data: data.thoracic?.data || [],
+          unit: data.thoracic?.unit || 'mV'
+        },
+        breathing: data.breathing
+      });
       onTimeRangeChange('10m');
     }
   };
@@ -239,21 +281,21 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Oxygen Saturation Chart */}
+        {/* SpO2 Chart (renamed from Oxygen Saturation) */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center text-lg font-medium">
               <svg className="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              Oxygen Saturation (SpO₂)
+              SpO₂ (Oxygen Saturation)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={sleepData.oxygen.data}
+                  data={sleepData.spo2.data}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -267,7 +309,7 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
                   <YAxis domain={[85, 100]} />
                   <ReferenceLine y={92} stroke="#f87171" strokeDasharray="3 3" />
                   <Tooltip 
-                    formatter={(value) => [`${value} ${sleepData.oxygen.unit}`, 'SpO₂']}
+                    formatter={(value) => [`${value} ${sleepData.spo2.unit}`, 'SpO₂']}
                     labelFormatter={(label) => {
                       const date = new Date(label);
                       return `Time: ${date.toLocaleTimeString()}`;
@@ -290,21 +332,21 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
 
         {/* Two Charts in a Row */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {/* Thoracic Movement Chart */}
+          {/* Piezoelectric Movement Chart (renamed from Thoracic) */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg font-medium">
                 <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
-                Thoracic Movement
+                Piezoelectric Movement
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={sleepData.thoracic.data}
+                    data={sleepData.piezoelectric.data}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -317,7 +359,7 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
                     />
                     <YAxis />
                     <Tooltip 
-                      formatter={(value) => [`${value} ${sleepData.thoracic.unit}`, 'Thoracic']}
+                      formatter={(value) => [`${value} ${sleepData.piezoelectric.unit}`, 'Piezoelectric']}
                       labelFormatter={(label) => {
                         const date = new Date(label);
                         return `Time: ${date.toLocaleTimeString()}`;
@@ -338,14 +380,14 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
             </CardContent>
           </Card>
 
-          {/* Breathing Pattern Chart */}
+          {/* Breathing Pattern Chart (Radar Amplitude) */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg font-medium">
                 <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Breathing Pattern
+                Breathing Pattern (Radar)
               </CardTitle>
             </CardHeader>
             <CardContent>

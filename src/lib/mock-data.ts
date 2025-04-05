@@ -1,38 +1,3 @@
-// src/lib/mock-data.ts
-
-// Fungsi utilitas untuk menghasilkan data time series (digunakan dalam pengembangan)
-// Fungsi ini tidak langsung digunakan dalam aplikasi tetapi disimpan sebagai referensi
-// untuk pembuatan data yang lebih kompleks jika diperlukan nanti
-/*
-function generateTimeSeriesData(minutes: number, interval = 5) {
-  const now = new Date();
-  const data = [];
-  
-  for (let i = 0; i < (minutes * 60) / interval; i++) {
-    const timePoint = new Date(now.getTime() - (minutes * 60 * 1000) + (i * interval * 1000));
-    
-    // Simulasi beberapa episode apnea untuk ditampilkan dalam grafik
-    const isApneaEpisode = 
-      (i > 150 && i < 180) || 
-      (i > 350 && i < 380) || 
-      (i > 550 && i < 590);
-    
-    // Data ECG dengan variasi realistis selama tidur
-    const ecgValue = Math.sin(i * 0.8) * 0.6 + 
-                     Math.sin(i * 2.5) * 0.3 +
-                     (Math.random() - 0.5) * 0.15;
-    
-    data.push({
-      time: timePoint.toISOString(),
-      value: ecgValue,
-      isApneaEvent: isApneaEpisode
-    });
-  }
-  
-  return data;
-}
-*/
-
 // Generate mock ECG data with normal sinus rhythm and occasional abnormalities
 const generateECGData = (timestamp: number, index: number) => {
   // Base sine wave for normal sinus rhythm (more realistic heart wave pattern)
@@ -79,8 +44,8 @@ const generateOxygenData = (timestamp: number, index: number, timeRange: string)
   return Math.min(100, Math.max(88, baseValue + fluctuation + apneaDip));
 };
 
-// More realistic thoracic movement data showing respiratory effort during OSA
-const generateThoracicData = (timestamp: number, index: number, timeRange: string) => {
+// More realistic piezoelectric voltage data showing respiratory effort during OSA
+const generatePiezoelectricData = (timestamp: number, index: number, timeRange: string) => {
   // Determine if this should be an apnea period
   const isApneaPeriod = 
     (timeRange === "1h" && (index > 1000 && index < 1200)) || 
@@ -172,7 +137,7 @@ const createRealTimeSeriesData = (timeRange: string) => {
   const totalPoints = duration / interval;
   const ecgData = [];
   const oxygenData = [];
-  const thoracicData = [];
+  const piezoelectricData = [];
   const breathingData = [];
   
   for (let i = 0; i < totalPoints; i++) {
@@ -190,9 +155,9 @@ const createRealTimeSeriesData = (timeRange: string) => {
       value: generateOxygenData(timestamp.getTime(), i, timeRange)
     });
     
-    thoracicData.push({
+    piezoelectricData.push({
       time: timeStr,
-      value: generateThoracicData(timestamp.getTime(), i, timeRange)
+      value: generatePiezoelectricData(timestamp.getTime(), i, timeRange)
     });
     
     breathingData.push({
@@ -201,22 +166,36 @@ const createRealTimeSeriesData = (timeRange: string) => {
     });
   }
   
+  // Return data with both legacy field names and new field names
   return {
     ecg: {
       data: ecgData,
       unit: 'mV'
     },
-    oxygen: {
+    oxygen: {  // Legacy field name
       data: oxygenData,
       unit: '%'
     },
-    thoracic: {
-      data: thoracicData,
-      unit: 'cm'
+    thoracic: {  // Legacy field name
+      data: piezoelectricData,
+      unit: 'mV'
     },
     breathing: {
       data: breathingData,
-      unit: 'cm'
+      unit: 'amplitude'
+    },
+    // New field names (for compatibility)
+    spo2: {
+      data: oxygenData,
+      unit: '%'
+    },
+    piezoelectric_voltage: {
+      data: piezoelectricData,
+      unit: 'mV'
+    },
+    radar_amplitude: {
+      data: breathingData,
+      unit: 'amplitude'
     }
   };
 };
@@ -482,8 +461,7 @@ export const mockDoctorApproval = {
   estimatedResponseTime: "24-48 hours"
 };
 
-// Utility function to simulate real-time data updates
-// This could be called at intervals to simulate streaming data from the IoT device
+// Utility function to simulate real-time data updates with new field names
 export const getRealtimeSensorUpdate = () => {
   const now = new Date();
   
@@ -512,13 +490,26 @@ export const getRealtimeSensorUpdate = () => {
     breathingValue = thoraxValue * 1.1 + (Math.random() - 0.5) * 0.15;
   }
   
+  // Return with both old and new field names for compatibility
   return {
     timestamp: now.toISOString(),
+    // Original field names (for backward compatibility)
     ecg: ecgValue,
     oxygen: oxygenValue,
     thorax: thoraxValue,
     breathing: breathingValue,
     hasApneaEvent,
-    heartRate: 60 + Math.round(Math.sin(now.getMinutes() * 0.1) * 5 + (Math.random() - 0.5) * 3)
+    heartRate: 60 + Math.round(Math.sin(now.getMinutes() * 0.1) * 5 + (Math.random() - 0.5) * 3),
+    
+    // New field names
+    ecg_mv: ecgValue,
+    spo2: oxygenValue,
+    piezoelectric_voltage: thoraxValue,
+    radar_amplitude: breathingValue,
+    heart_rate: 60 + Math.round(Math.sin(now.getMinutes() * 0.1) * 5 + (Math.random() - 0.5) * 3),
+    
+    // Raw values for pulse oximeter (if needed)
+    raw_ir: 50000 + Math.random() * 4000,
+    raw_red: 46000 + Math.random() * 4000
   };
 };
