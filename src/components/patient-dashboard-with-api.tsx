@@ -113,11 +113,11 @@ export default function PatientDashboardWithApi() {
     notes: '',
   });
   
-  // State for info cards
+  // State for info cards - Initialize with safe default values
   const [sleepQuality, setSleepQuality] = useState(85);
-  const [apneaEvents, setApneaEvents] = useState(3);
+  const [apneaEvents, setApneaEvents] = useState(0); // Changed from 3 to 0 to be safer
   const [oxygenSaturation, setOxygenSaturation] = useState(96);
-  const [apneaEventTrend, setApneaEventTrend] = useState<'up' | 'down' | 'stable'>('down');
+  const [apneaEventTrend, setApneaEventTrend] = useState<'up' | 'down' | 'stable'>('stable'); // Changed from 'down' to 'stable'
   
   // Fetch patient profile data
   useEffect(() => {
@@ -192,8 +192,8 @@ export default function PatientDashboardWithApi() {
             setSleepQuality(latest.sleep_quality);
           }
           
-          // Update apnea events
-          if (latest.apnea_events !== undefined) {
+          // Update apnea events - with null check
+          if (latest.apnea_events !== undefined && latest.apnea_events !== null) {
             setApneaEvents(latest.apnea_events);
             
             // Update trend based on previous data
@@ -248,9 +248,8 @@ export default function PatientDashboardWithApi() {
         // Increment apnea events occasionally
         if (Math.random() > 0.7) {
           setApneaEvents(prev => prev + 1);
-          if (apneaEvents > 5) {
-            setApneaEventTrend('up');
-          }
+          // Only check apneaEvents if it's not null
+          setApneaEventTrend(apneaEvents > 5 ? 'up' : 'stable');
         }
       } else {
         setSleepQuality(prev => Math.min(95, prev + (Math.random() > 0.7 ? 1 : 0)));
@@ -261,7 +260,7 @@ export default function PatientDashboardWithApi() {
       console.log('Stopping simulated sensor updates');
       clearInterval(updateInterval);
     };
-  }, [user, devices, apneaEvents]);
+  }, [user, devices]);
 
   if (loading) {
     return (
@@ -316,7 +315,7 @@ export default function PatientDashboardWithApi() {
         />
         <InfoCard 
           title="Apnea Events" 
-          value={apneaEvents.toString()}
+          value={String(apneaEvents)} // Changed from toString() to String() to handle null/undefined cases
           trend={apneaEventTrend}
           description={apneaEventTrend === 'down' ? "Detected last night (improved)" : "Detected last night (monitor closely)"}
           icon={

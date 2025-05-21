@@ -46,9 +46,9 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
         data: data.thoracic?.data || [],
         unit: data.thoracic?.unit || 'mV'
       },
-      // Initialize BPM data with mock values
+      // Replace breathing with bpm data 
       bpm: {
-        data: generateInitialBpmData(),
+        data: [] as { time: string; value: number }[],
         unit: 'bpm'
       }
     };
@@ -57,21 +57,6 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
   const [isLive, setIsLive] = useState(true);
   const [hasApneaEvent, setHasApneaEvent] = useState(false);
   const [apneaDuration, setApneaDuration] = useState(0);
-  
-  // Generate initial BPM data with realistic values
-  function generateInitialBpmData() {
-    const now = new Date();
-    const result = [];
-    for (let i = 0; i < 30; i++) {
-      const timestamp = new Date(now.getTime() - (30 - i) * 1000).toISOString();
-      // Generate random BPM between 60-80 with small variations
-      const baseBpm = 70;
-      const variation = Math.random() * 10 - 5; // -5 to +5
-      const value = Math.round(baseBpm + variation);
-      result.push({ time: timestamp, value });
-    }
-    return result;
-  }
   
   // Function to update charts with MQTT data
   const updateChartsWithMqttData = useCallback(() => {
@@ -125,20 +110,9 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
         const newPiezoelectricData = [...prevData.piezoelectric.data.slice(1)];
         newPiezoelectricData.push({ time: latestData.timestamp, value: latestData.thorax });
         
-        // Make sure we have BPM data and it's initialized correctly
-        let currentBpmData = prevData.bpm.data;
-        if (!currentBpmData || currentBpmData.length === 0) {
-          currentBpmData = generateInitialBpmData();
-        }
-        
-        // Update BPM data (heart rate)
-        const newBpmData = [...currentBpmData.slice(1)];
-        // Make sure we have a valid heart rate value, fallback to a realistic value if not
-        const heartRate = typeof latestData.heart_rate === 'number' && !isNaN(latestData.heart_rate) 
-          ? latestData.heart_rate 
-          : 70 + Math.floor(Math.random() * 10 - 5); // Random between 65-75
-          
-        newBpmData.push({ time: latestData.timestamp, value: heartRate });
+        // Update BPM data (heart rate) - replacing breathing data
+        const newBpmData = [...prevData.bpm.data.slice(1)] as { time: string; value: number }[];
+        newBpmData.push({ time: latestData.timestamp, value: latestData.heart_rate || 0 });
         
         return {
           ecg: {
@@ -187,9 +161,6 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
     // Get new data when time range changes
     if (!isLive) {
       const data = mockSleepData(timeRange);
-      // Generate mock BPM data for selected time range
-      const mockBpmData = generateMockBpmDataForTimeRange(timeRange);
-      
       setSleepData({
         ecg: data.ecg,
         spo2: {
@@ -201,72 +172,12 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
           unit: data.thoracic?.unit || 'mV'
         },
         bpm: {
-          data: mockBpmData,
+          data: [], // We'll populate this with heart rate data
           unit: 'bpm'
         }
       });
     }
   }, [timeRange, isLive]);
-  
-  // Function to generate mock BPM data for different time ranges
-  function generateMockBpmDataForTimeRange(range: string) {
-    const now = new Date();
-    const result = [];
-    let dataPoints = 30; // Default number of data points
-    let interval = 60 * 1000; // Default interval in ms (1 minute)
-    
-    // Adjust data points and intervals based on time range
-    switch (range) {
-      case '10m':
-        dataPoints = 60;
-        interval = 10 * 1000; // Every 10 seconds
-        break;
-      case '30m':
-        dataPoints = 60;
-        interval = 30 * 1000; // Every 30 seconds
-        break;
-      case '1h':
-        dataPoints = 60;
-        interval = 60 * 1000; // Every 1 minute
-        break;
-      case '3h':
-        dataPoints = 90;
-        interval = 2 * 60 * 1000; // Every 2 minutes
-        break;
-      case '8h':
-        dataPoints = 96;
-        interval = 5 * 60 * 1000; // Every 5 minutes
-        break;
-    }
-    
-    // Generate data points
-    for (let i = 0; i < dataPoints; i++) {
-      const timestamp = new Date(now.getTime() - (dataPoints - i) * interval).toISOString();
-      
-      // Generate more realistic BPM data - simulate sleep cycles
-      let baseBpm;
-      const hourOfDay = new Date(timestamp).getHours();
-      
-      // Lower heart rate during deep sleep hours (1AM-4AM), higher when waking up
-      if (hourOfDay >= 1 && hourOfDay <= 4) {
-        baseBpm = 55; // Deep sleep
-      } else if (hourOfDay >= 5 && hourOfDay <= 7) {
-        baseBpm = 65; // REM/lighter sleep before waking
-      } else if (hourOfDay >= 8 && hourOfDay <= 10) {
-        baseBpm = 75; // Waking up/morning
-      } else {
-        baseBpm = 70; // Default
-      }
-      
-      // Add some natural variation
-      const variation = Math.random() * 10 - 5; // -5 to +5
-      const value = Math.round(baseBpm + variation);
-      
-      result.push({ time: timestamp, value });
-    }
-    
-    return result;
-  }
   
   const timeRangeOptions = [
     { value: '10m', label: '10 min' },
@@ -302,7 +213,7 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
           unit: data.thoracic?.unit || 'mV'
         },
         bpm: {
-          data: generateInitialBpmData(), // Initialize BPM data properly
+          data: [], // We'll populate this with heart rate data
           unit: 'bpm'
         }
       });
@@ -354,6 +265,16 @@ const MonitoringSection: React.FC<MonitoringSectionProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MQTT Connection Error */}
+      {isLive && mqtt.error && (
+        <Alert className="text-amber-800 border-amber-200 bg-amber-50">
+          <AlertCircle className="w-4 h-4 text-amber-600" />
+          <AlertDescription>
+            {mqtt.error} - Using simulated data instead.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Apnea Alert Banner */}
       {hasApneaEvent && (
